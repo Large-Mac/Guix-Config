@@ -37,6 +37,8 @@
     "clang"	;; C family frontend for LLVM
     "docker"	;; containers
     "podman"	;; rootless and headless containers
+    "emacs"	;; The holy editor
+    "neovim"	;; The evil editor
     ;; LSP Support for Emacs
  ;;   "guile-lsp"	;; Guile Scheme
  ;;   "nil"	;; Nix
