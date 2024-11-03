@@ -1,0 +1,178 @@
+(define-module (home services emacs)
+  #:use-module (gnu home)
+  #:use-module (gnu home services)
+  #:use-module (gnu services)
+  #:use-module (gnu packages)
+  #:use-module (guix gexp)
+  #:use-module (gnu home services emacs)
+  #:export (emacs-service))
+
+(define emacs-config
+  `(
+    ;; Bootstrap straight.el
+    (defvar bootstrap-version)
+    (let ((bootstrap-file
+           (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+          (bootstrap-version 6))
+      (unless (file-exists-p bootstrap-file)
+        (with-current-buffer
+            (url-retrieve-synchronously
+             "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+             'silent 'inhibit-cookies)
+          (goto-char (point-max))
+          (eval-print-last-sexp)))
+      (load bootstrap-file nil 'nomessage))
+
+    ;; Configure use-package to use straight.el
+    (straight-use-package 'use-package)
+    (setq straight-use-package-by-default t)
+    
+    ;; Basic settings
+    (setq inhibit-startup-message t)
+    (menu-bar-mode -1)
+    (tool-bar-mode -1)
+    (scroll-bar-mode -1)
+    (global-display-line-numbers-mode 1)
+    
+    ;; Evil mode configuration
+    (use-package evil
+      :init
+      (setq evil-want-integration t)
+      (setq evil-want-keybinding nil)
+      :config
+      (evil-mode 1))
+    
+    ;; LSP Mode configuration
+    (use-package lsp-mode
+      :init
+      (setq lsp-keymap-prefix "C-c l")
+      :hook ((c-mode . lsp-deferred)
+             (c++-mode . lsp-deferred)
+             (lua-mode . lsp-deferred)
+             (nix-mode . lsp-deferred)
+             (scheme-mode . lsp-deferred)
+             (emacs-lisp-mode . lsp-deferred))
+      :commands lsp-deferred
+      :custom
+      (lsp-completion-provider :none) ; we use Corfu!
+      (lsp-headerline-breadcrumb-enable t)
+      :config
+      (setq lsp-idle-delay 0.1
+            lsp-prefer-flymake nil))
+
+    ;; LSP UI enhancements
+    (use-package lsp-ui
+      :hook (lsp-mode . lsp-ui-mode)
+      :custom
+      (lsp-ui-doc-enable t)
+      (lsp-ui-doc-position 'bottom)
+      (lsp-ui-sideline-enable t))
+
+    ;; Language specific modes
+    (use-package nix-mode
+      :mode "\\.nix\\'")
+
+    (use-package lua-mode
+      :mode "\\.lua\\'")
+
+    (use-package geiser-guile
+      :hook (scheme-mode . geiser-mode))
+
+    ;; Corfu completion
+    (use-package corfu
+      :custom
+      (corfu-auto t)
+      (corfu-auto-prefix 2)
+      (corfu-auto-delay 0.0)
+      :init
+      (global-corfu-mode))
+
+    ;; Cape for completion extensions
+    (use-package cape
+      :after corfu
+      :init
+      (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+      (add-to-list 'completion-at-point-functions #'cape-file))
+
+    ;; Eshell configuration
+    (use-package eshell
+      :custom
+      (eshell-history-size 10000)
+      (eshell-buffer-maximum-lines 10000)
+      :config
+      (add-hook 'eshell-mode-hook
+                (lambda ()
+                  (eshell/alias "e" "find-file $1")
+                  (eshell/alias "ff" "find-file $1")
+                  (eshell/alias "emacs" "find-file $1")
+                  (eshell/alias "ee" "find-file-other-window $1"))))
+
+    ;; Org-mode and Org-roam
+    (use-package org
+      :custom
+      (org-directory "~/org/")
+      (org-agenda-files '("~/org/agenda/"))
+      (org-default-notes-file "~/org/notes.org")
+      :config
+      (require 'org-agenda)
+      (setq org-agenda-start-on-weekday nil)
+      (setq org-agenda-span 10)
+      (setq org-agenda-start-day "-3d"))
+
+    (use-package org-roam
+      :custom
+      (org-roam-directory (file-truename "~/org/roam"))
+      :config
+      (org-roam-db-autosync-mode)
+      :bind (("C-c n l" . org-roam-buffer-toggle)
+             ("C-c n f" . org-roam-node-find)
+             ("C-c n i" . org-roam-node-insert)))
+
+    ;; Nov.el for epub reading
+    (use-package nov
+      :mode ("\\.epub\\'" . nov-mode))
+
+    ;; EWW configuration
+    (use-package eww
+      :custom
+      (eww-search-prefix "https://duckduckgo.com/html?q=")
+      (browse-url-browser-function 'eww-browse-url)
+      :config
+      (setq eww-download-directory "~/Downloads/"))
+
+    ;; Theme
+    (use-package doom-themes
+      :config
+      (load-theme 'doom-pine t))
+    
+    ;; Try package
+    ;;(use-package try)
+    
+    ;; Custom key bindings
+    (global-set-key (kbd "C-c a") 'org-agenda)
+    (global-set-key (kbd "C-c e") 'eshell)
+    (global-set-key (kbd "C-c w") 'eww)
+    
+    ;; LSP key bindings
+    (global-set-key (kbd "C-c l d") 'lsp-find-definition)
+    (global-set-key (kbd "C-c l r") 'lsp-find-references)
+    (global-set-key (kbd "C-c l a") 'lsp-execute-code-action)
+    (global-set-key (kbd "C-c l R") 'lsp-rename)
+    
+    ;; Backup settings
+    (setq backup-directory-alist '(("." . "~/.emacs.d/backups")))
+    (setq auto-save-file-name-transforms '((".*" "~/.emacs.d/auto-save-list/" t)))
+    
+    ;; UTF-8 everywhere
+    (prefer-coding-system 'utf-8)
+    (set-default-coding-systems 'utf-8)
+    (set-terminal-coding-system 'utf-8)
+    (set-keyboard-coding-system 'utf-8)))
+
+(define emacs-service
+  (service home-emacs-service-type
+           (home-emacs-configuration
+            (package emacs)
+            (init-el
+             #~(begin
+                 #$@emacs-config)))))
